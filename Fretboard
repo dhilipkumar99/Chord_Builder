@@ -1,0 +1,16 @@
+library(shiny)
+library(dplyr)
+
+# Create a list for the D&D Races
+guitar_chords <- list(
+  c("E", "F", "F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E"),
+  c("B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"),
+  c("G", "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G"),
+  c("D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", "C", "C#", "D"),
+  c("A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A"),
+  c("E", "F", "F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E")
+)
+
+# Convert the list to a dataframe
+guitar_chords <- as.data.frame(do.call(rbind, guitar_chords))
+
