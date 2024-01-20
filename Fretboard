@@ -1,34 +1,13 @@
 rm(list=ls(all=TRUE))
 
 
-
-
-
-##################
-
+# Import our libraries
+source("./libs/create_guitar_data.R")
+source("./libs/highlight_notes.R")
 library(shiny)
 library(dplyr)
 
-# Create a list for the Chords
-guitar_chords <- list(
-  c("E", "F", "F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E"),
-  c("B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"),
-  c("G", "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G"),
-  c("D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", "C", "C#", "D"),
-  c("A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A"),
-  c("E", "F", "F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E")
-)
-
-# Convert the list to a dataframe
-guitar_chords_df <- as.data.frame(do.call(rbind, guitar_chords))
-
-# Assign notes a number value
-note_number_value <- data.frame(
-  Note = c("G", "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G"),
-  Number = 0:24
-)
-
-#Define the UI
+# Define the UI
 ui <- fluidPage(
   titlePanel("Guitar Chord Selector"),
   sidebarLayout(
@@ -43,77 +22,39 @@ ui <- fluidPage(
   )
 )
 
+# Create guitar chords dataframe
+data <- create_guitar_data()
+guitar_chords_df <- data$guitar_chords_df
+note_number_values <- data$note_number_values
+
 
 # Define server logic
 server <- function(input, output) {
-  selected_data <- reactiveVal(NULL)
+  updated_fretboard <- reactiveVal(NULL)
   
   observeEvent(input$submitBtn, {
     req(input$selectedNote)
     
     # Get the number value of the selected note
-    selected_number <- note_number_value$Number[note_number_value$Note == input$selectedNote]
+    root_note <- note_number_values$Number[note_number_values$Note == input$selectedNote]
     
     if (input$selectEvent == "Major") {
-      # Select all instances of the selected note, add 4, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 5], ., NA))
-      )
-      
-      # Add another 3, select, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 5] | . == note_number_value$Note[selected_number + 8], ., NA))
-      )
+      intervals = c(0, 5, 8)
     } else if (input$selectEvent == "Minor") {
-      # Select all instances of the selected note, add 3, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 4], ., NA))
-      )
-      
-      # Add another 4, select, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 4] | . == note_number_value$Note[selected_number + 8], ., NA))
-      )
+      intervals = c(0, 4, 8)
     } else if (input$selectEvent == "Maj7") {
-      # Select all instances of the selected note, add 4, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 5], ., NA))
-      )
-      
-      # Add another 3, select, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 5] | . == note_number_value$Note[selected_number + 8], ., NA))
-      )
-      
-      # Add another 3, select, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 5] | . == note_number_value$Note[selected_number + 8] | . == note_number_value$Note[selected_number + 12], ., NA))
-      )
+      intervals = c(0, 5, 8, 11)
     } else if (input$selectEvent == "sus2") {
-      # Select all instances of the selected note, add 4, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 3], ., NA))
-      )
-      
-      # Add another 5, select, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 3] | . == note_number_value$Note[selected_number + 8], ., NA))
-      )
+      intervals = c(0, 3, 8)
     } else if (input$selectEvent == "sus4") {
-      # Select all instances of the selected note, add 4, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 6], ., NA))
-      )
-      
-      # Add another 2, select, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 6] | . == note_number_value$Note[selected_number + 8], ., NA))
-      )
+      intervals = c(0, 6, 8)
     }
+
+    updated_fretboard <- highlight_notes(root_note, intervals, guitar_chords_df, note_number_values)
   })
   
   output$selectedTable <- renderTable({
-    selected_data()
+    updated_fretboard()
   }, rownames = FALSE)
 }
 
