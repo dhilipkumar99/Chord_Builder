@@ -3,9 +3,6 @@ rm(list=ls(all=TRUE))
 
 
 
-
-##################
-
 library(shiny)
 library(dplyr)
 
@@ -22,102 +19,112 @@ guitar_chords <- list(
 # Convert the list to a dataframe
 guitar_chords_df <- as.data.frame(do.call(rbind, guitar_chords))
 
+#Give it column names
+colnames(guitar_chords_df) <- 0:12
+
 # Assign notes a number value
 note_number_value <- data.frame(
   Note = c("G", "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G"),
   Number = 0:24
 )
 
-#Define the UI
+# Define the UI
 ui <- fluidPage(
   titlePanel("Guitar Chord Selector"),
+  tags$head(
+    tags$style(
+      HTML(
+        "
+        body {
+          background-color: #F7F9F9; /* Set your desired background color for the entire page */
+        }
+        .sidebar {
+          background-color: #F5CBA7; /* Set your desired background color for the sidebar */
+        }
+        "
+      )
+    )
+  ),
   sidebarLayout(
     sidebarPanel(
+      style = "background-color: #D5F5E3;",
       textInput("selectedNote", "Enter a Note (e.g., C):", ""),
       actionButton("submitBtn", "Submit"),
-      selectInput("selectEvent", "Select Major or Minor", choices = c("Major", "Minor", "Maj7", "sus2", "sus4"), selected = "Major")
+      selectInput("choose_chord_type", "Select Major or Minor", choices = c(
+        "Major", "Minor", "Diminished", "maj7", "Dominant 7", "min7", "sus2", "sus4",
+        "add2", "madd2", "5th", "6th", "min6", "mM7", "9th", "min9", "maj9",
+        "Dominant 9", "dim7", "1/2 dim7", "aug M7", "aug 7", "7sus4", "9sus4",
+        "add9", "madd9"), selected = "Major")
     ),
     mainPanel(
-      tableOutput("selectedTable")
+      tableOutput("fretboard_table"),
+      textOutput("input_summary")
     )
   )
 )
 
+# Create a function for chord selection
+select_chord <- function(selected_note, note_number, intervals) {
+  guitar_chords_df %>% mutate_all(
+    ~ifelse(. == selected_note | . %in% note_number_value$Note[note_number + intervals], ., NA))
+}
 
 # Define server logic
 server <- function(input, output) {
-  selected_data <- reactiveVal(NULL)
+  chord_shape_output <- reactiveVal(guitar_chords_df)
   
   observeEvent(input$submitBtn, {
     req(input$selectedNote)
     
-    # Get the number value of the selected note
-    selected_number <- note_number_value$Number[note_number_value$Note == input$selectedNote]
+    # Get the lowest number value of the selected note
+    note_number <- min(note_number_value$Number[note_number_value$Note == input$selectedNote])
     
-    if (input$selectEvent == "Major") {
-      # Select all instances of the selected note, add 4, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 5], ., NA))
-      )
-      
-      # Add another 3, select, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 5] | . == note_number_value$Note[selected_number + 8], ., NA))
-      )
-    } else if (input$selectEvent == "Minor") {
-      # Select all instances of the selected note, add 3, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 4], ., NA))
-      )
-      
-      # Add another 4, select, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 4] | . == note_number_value$Note[selected_number + 8], ., NA))
-      )
-    } else if (input$selectEvent == "Maj7") {
-      # Select all instances of the selected note, add 4, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 5], ., NA))
-      )
-      
-      # Add another 3, select, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 5] | . == note_number_value$Note[selected_number + 8], ., NA))
-      )
-      
-      # Add another 3, select, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 5] | . == note_number_value$Note[selected_number + 8] | . == note_number_value$Note[selected_number + 12], ., NA))
-      )
-    } else if (input$selectEvent == "sus2") {
-      # Select all instances of the selected note, add 4, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 3], ., NA))
-      )
-      
-      # Add another 5, select, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 3] | . == note_number_value$Note[selected_number + 8], ., NA))
-      )
-    } else if (input$selectEvent == "sus4") {
-      # Select all instances of the selected note, add 4, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 6], ., NA))
-      )
-      
-      # Add another 2, select, and display
-      selected_data(guitar_chords_df %>% mutate_all(
-        ~ifelse(. == input$selectedNote | . == note_number_value$Note[selected_number + 6] | . == note_number_value$Note[selected_number + 8], ., NA))
-      )
-    }
+    # Define intervals for each chord type
+    chord_intervals <- list(
+      "Major" = c(5, 8),
+      "Minor" = c(4, 8),
+      "Diminished" = c(4, 7),
+      "maj7" = c(5, 8, 12),
+      "Dominant 7" = c(5, 8, 11),
+      "min7" = c(4, 8, 11),
+      "sus2" = c(3, 8),
+      "sus4" = c(6, 8),
+      "add2" = c(3, 5, 8),
+      "madd2" = c(3, 4, 8),
+      "5th" = c(8),
+      "6th" = c(5, 8, 10),
+      "min6" = c(4, 8, 10),
+      "mM7" = c(4, 8, 12),
+      "9th" = c(3, 5, 8, 11),
+      "min9" = c(3, 4, 11),
+      "maj9" = c(3, 5, 11),
+      "Dominant 9" = c(3, 5, 12),
+      "dim7" = c(4, 7, 10),
+      "1/2 dim7" = c(4, 7, 11),
+      "aug M7" = c(5, 9, 12),
+      "aug 7" = c(5, 9, 11),
+      "7sus4" = c(6, 8, 11),
+      "9sus4" = c(3, 6, 8, 11),
+      "add9" = c(3, 5, 8),
+      "madd9" = c(3, 4, 8)
+    )
+    
+    # Call the select_chord function based on the chosen chord type
+    chord_shape_output(select_chord(input$selectedNote, note_number, chord_intervals[[input$choose_chord_type]]))
+    
+    # Print the inputs as one line
+    cat("Selected Note:", input$selectedNote, "Chord Type:", input$choose_chord_type, "\n")
   })
   
-  output$selectedTable <- renderTable({
-    selected_data()
+  output$fretboard_table <- renderTable({
+    chord_shape_output()
   }, rownames = FALSE)
+  
+  # Display the input summary
+  output$input_summary <- renderText({
+    paste("Chord Shown:", input$selectedNote, "", input$choose_chord_type)
+  })
 }
 
 # Run the app
 shinyApp(ui, server)
-
-
